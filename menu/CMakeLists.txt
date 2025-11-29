@@ -16,7 +16,6 @@ target_link_directories(MySQLClassicExample PRIVATE
     ${MYSQL_CONCPP_DIR}/lib64
 )
 
-# Only the MySQL connector (no ssl/crypto)
 target_link_libraries(MySQLClassicExample PRIVATE
     mysqlcppconn
 )
