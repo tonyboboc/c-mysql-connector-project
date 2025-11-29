@@ -10,7 +10,8 @@ int main() {
         const std::string user = "mysql";
         const std::string pass = "mysql1234";
         const std::string schema = "mydb";
-
+        const std::string bar_menu="menu_bar";
+        const std::string food_menu="menu_food";
         sql::mysql::MySQL_Driver *driver = sql::mysql::get_driver_instance();
 
         
@@ -24,8 +25,8 @@ int main() {
         res=stmt->executeQuery("Select * from menu_bar;");
         while(res->next()){
             std::cout<<"id= "<<res->getInt(1)<<" ";
-            std::cout<<"name of drink : "<<res->getString(2);
-            std::cout<<" price : "<<res->getDouble(3);
+            std::cout<<" | name of drink : "<<res->getString(2);
+            std::cout<<" | price : "<<res->getDouble(3);
             std::cout<<std::endl;
         }
         delete res;
