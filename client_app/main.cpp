@@ -3,6 +3,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <map>
+#include <array>
 void show_menu(const std::string & menu,sql::Connection *con){
         sql::Statement *stmt;
         sql::ResultSet *res;
@@ -17,10 +19,55 @@ void show_menu(const std::string & menu,sql::Connection *con){
         }
         delete res;
         delete stmt;
-}
-void order(const std::string menu){
+}   
+void placing_order(const std::string & menu,const std::string & table ,sql::Connection *con){
+    std::cout<<"do you want the menu 1(yes) 0(no) ";
+    int choice;
+    std::cin>>choice;
+    if(choice==1){
+        show_menu(menu, con);
+    }
+    std::cout<<"chose what you want to order (based on id) (0 means exit) ";
+    choice =-1;
+    sql::PreparedStatement *prep_stmt;
+    std::string string_statement="SELECT name FROM " + menu+ " WHERE id = ?;";
+    prep_stmt=con->prepareStatement(string_statement) ;
+    sql::ResultSet* res;
+    while(choice !=0){
+        std::cin>>choice;
+        if(choice==0){
+            delete res;
+            break;
+        }
+        prep_stmt->setInt(1,choice);
+        res=prep_stmt->executeQuery();
+        if(!res->next()){
+            std::cout<<"Invalid Item";
+        }
+        else{
+            std::cout<<res->getString(1)<<" added to your choices ";
+        }
+        
+        
 
+    }
+    delete prep_stmt;
 }
+void order(const std::string & bar_menu,const std::string & food_menu,sql::Connection *con,const std::string & cook_tb, const std::string & barman_tb){
+    int what_type;
+    std::map<int , std::array<std::string, 2>> choice;
+    choice[0]={bar_menu,barman_tb};
+    choice[1]={food_menu,cook_tb};
+    std::cout<<"what do you want to order, food or drink ? (1=food 0=drink) ";
+    std::cin>>what_type;
+    if(what_type<0||what_type>1){
+        std::cout<<"you didn't choose what to order ";
+        std::cin>>what_type;
+    }
+    placing_order(choice[what_type][0],choice[what_type][1],con);
+    
+}
+
 int main() {
     try {
 
@@ -30,6 +77,8 @@ int main() {
         const std::string schema = "mydb";
         const std::string bar_menu="menu_bar";
         const std::string food_menu="menu_food";
+        const std::string cook_tb="cook_to_do";
+        const std::string barman_tb="barman_to_do";
         sql::mysql::MySQL_Driver *driver = sql::mysql::get_driver_instance();
 
         
@@ -40,6 +89,7 @@ int main() {
         show_menu(bar_menu,con.get());
         std::cout<<"now showing food menu\n";
         show_menu(food_menu,con.get());
+        order(bar_menu,food_menu,con.get(),cook_tb,barman_tb);
     } catch (const sql::SQLException &e) {
         std::cerr << "MySQL error: " << e.what()
                   << " (code: " << e.getErrorCode()
