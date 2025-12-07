@@ -19,10 +19,29 @@ void show_menu(const std::string & menu,sql::Connection *con){
         }
         delete res;
         delete stmt;
-}   
+} 
+void adding_to_table(const std::string & table,sql::Connection *con,const  std::vector<std::string> & v){
+        std::string query = "SELECT MAX(id) FROM " + table + ";";
+         sql::PreparedStatement* prep = con->prepareStatement(query);
+        sql::ResultSet* res = prep->executeQuery();
+         int id = 0;
+    if (res->next()) {
+        id = res->getInt(1)+1;
+    }
+    else{
+        id=1;
+    }
+    delete res;
+    delete prep;
+    for(const std::string & item:v){
+
+    }
+
+}  
 void placing_order(const std::string & menu,const std::string & table ,sql::Connection *con){
     std::cout<<"do you want the menu 1(yes) 0(no) ";
     int choice;
+    std::vector<std::string> to_be_ordered;
     std::cin>>choice;
     if(choice==1){
         show_menu(menu, con);
@@ -36,7 +55,6 @@ void placing_order(const std::string & menu,const std::string & table ,sql::Conn
     while(choice !=0){
         std::cin>>choice;
         if(choice==0){
-            delete res;
             break;
         }
         prep_stmt->setInt(1,choice);
@@ -46,10 +64,12 @@ void placing_order(const std::string & menu,const std::string & table ,sql::Conn
         }
         else{
             std::cout<<res->getString(1)<<" added to your choices ";
-        }
-        
-        
-
+            to_be_ordered.push_back(res->getString(1));
+        } 
+         delete res;
+    }
+    if(!to_be_ordered.empty()){
+        adding_to_table(table,con,to_be_ordered);
     }
     delete prep_stmt;
 }
