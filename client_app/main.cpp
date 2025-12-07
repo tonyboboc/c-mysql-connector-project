@@ -33,9 +33,14 @@ void adding_to_table(const std::string & table,sql::Connection *con,const  std::
     }
     delete res;
     delete prep;
+    query="INSERT INTO "+table +" (id,name) VAlUES (?,?);";
+    prep=con->prepareStatement(query);
     for(const std::string & item:v){
-
+        prep->setInt(1,id);
+        prep->setString(2,item);
+        prep->execute();
     }
+    delete prep;
 
 }  
 void placing_order(const std::string & menu,const std::string & table ,sql::Connection *con){
