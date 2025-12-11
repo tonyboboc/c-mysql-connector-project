@@ -5,6 +5,13 @@
 #include <string>
 #include <map>
 #include <array>
+#include <thread>
+#include <chrono>
+#include <mutex>
+        const std::string url  = "tcp://127.0.0.1:3306"; 
+        const std::string user = "mysql";
+        const std::string pass = "mysql1234";
+        const std::string schema = "mydb";
 void show_menu(const std::string & menu,sql::Connection *con){
         sql::Statement *stmt;
         sql::ResultSet *res;
@@ -20,7 +27,29 @@ void show_menu(const std::string & menu,sql::Connection *con){
         delete res;
         delete stmt;
 } 
-void adding_to_table(const std::string & table,sql::Connection *con,const  std::vector<std::string> & v){
+std::mutex mtx;
+void wainting_for_response(int x,const std::string table){
+    sql::mysql::MySQL_Driver *driver = sql::mysql::get_driver_instance();
+std::unique_ptr<sql::Connection> con(
+            driver->connect(url, user, pass)
+        );
+        con->setSchema(schema);
+    std::string sql_statement="Select * from "+table+" WHERE id= "+std::to_string(x) + " ;";
+
+    sql::Statement *stmt;
+
+    stmt=con->createStatement();
+    while (true) {
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery(sql_statement));
+        if (!res->next()) break;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    delete stmt;
+    mtx.lock();
+    std::cout<<"Your order was finished";
+    mtx.unlock();
+}
+std::thread adding_to_table(std::string table,sql::Connection *con,const  std::vector<std::string> & v){
         std::string query = "SELECT MAX(id) FROM " + table + ";";
          sql::PreparedStatement* prep = con->prepareStatement(query);
         sql::ResultSet* res = prep->executeQuery();
@@ -41,9 +70,11 @@ void adding_to_table(const std::string & table,sql::Connection *con,const  std::
         prep->execute();
     }
     delete prep;
+    std::thread t (wainting_for_response,id,table);
+    return t;
 
 }  
-void placing_order(const std::string & menu,const std::string & table ,sql::Connection *con){
+std::thread placing_order(std::string menu,std::string table ,sql::Connection *con){
     std::cout<<"do you want the menu 1(yes) 0(no) ";
     int choice;
     std::vector<std::string> to_be_ordered;
@@ -73,12 +104,16 @@ void placing_order(const std::string & menu,const std::string & table ,sql::Conn
         } 
          delete res;
     }
-    if(!to_be_ordered.empty()){
-        adding_to_table(table,con,to_be_ordered);
-    }
     delete prep_stmt;
+    if(!to_be_ordered.empty()){
+        return adding_to_table(table,con,to_be_ordered);
+    }
+    else{
+        return std::thread(); 
+    }
+    
 }
-void order(const std::string & bar_menu,const std::string & food_menu,sql::Connection *con,const std::string & cook_tb, const std::string & barman_tb){
+std::thread order(const std::string & bar_menu,const std::string & food_menu,sql::Connection *con,const std::string & cook_tb, const std::string & barman_tb){
     int what_type;
     std::map<int , std::array<std::string, 2>> choice;
     choice[0]={bar_menu,barman_tb};
@@ -89,17 +124,13 @@ void order(const std::string & bar_menu,const std::string & food_menu,sql::Conne
         std::cout<<"you didn't choose what to order ";
         std::cin>>what_type;
     }
-    placing_order(choice[what_type][0],choice[what_type][1],con);
+    return placing_order(choice[what_type][0],choice[what_type][1],con);
     
 }
 
 int main() {
     try {
 
-        const std::string url  = "tcp://127.0.0.1:3306"; 
-        const std::string user = "mysql";
-        const std::string pass = "mysql1234";
-        const std::string schema = "mydb";
         const std::string bar_menu="menu_bar";
         const std::string food_menu="menu_food";
         const std::string cook_tb="cook_to_do";
@@ -114,7 +145,12 @@ int main() {
         show_menu(bar_menu,con.get());
         std::cout<<"now showing food menu\n";
         show_menu(food_menu,con.get());
-        order(bar_menu,food_menu,con.get(),cook_tb,barman_tb);
+        std::thread t=order(bar_menu,food_menu,con.get(),cook_tb,barman_tb);
+        std::cout<<"your order is complete ,wait for it to be done \n";
+        if(t.joinable()){
+            t.join();
+        }
+
     } catch (const sql::SQLException &e) {
         std::cerr << "MySQL error: " << e.what()
                   << " (code: " << e.getErrorCode()
