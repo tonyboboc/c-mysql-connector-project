@@ -46,7 +46,7 @@ std::unique_ptr<sql::Connection> con(
     }
     delete stmt;
     mtx.lock();
-    std::cout<<"Your order was finished";
+    std::cout<<"Your order was finished\n";
     mtx.unlock();
 }
 std::thread adding_to_table(std::string table,sql::Connection *con,const  std::vector<std::string> & v){
@@ -145,11 +145,29 @@ int main() {
         show_menu(bar_menu,con.get());
         std::cout<<"now showing food menu\n";
         show_menu(food_menu,con.get());
-        std::thread t=order(bar_menu,food_menu,con.get(),cook_tb,barman_tb);
-        std::cout<<"your order is complete ,wait for it to be done \n";
-        if(t.joinable()){
+        int x;
+        std::cout<<"do you want to order (1 yes) (0 no) ";
+        std::cin>>x;
+        std::vector<std::thread> orders;
+        while(x!=0){
+            if(x!=1){
+                std::cout<<"you didn't chose yes or no , enter again what you want ";
+                std::cin>>x;
+                continue;
+            }
+            std::thread t=order(bar_menu,food_menu,con.get(),cook_tb,barman_tb);
+            std::cout<<"your order is complete ,wait for it to be done \n";
+            orders.emplace_back(std::move(t));
+            std::cout<<"do you want to order something else ? ";
+            std::cin>>x;
+        }
+        std::cout<<"your ordering is done, wait for your commands\n";
+        for(auto & t :orders){
+            if(t.joinable()){
             t.join();
         }
+        }
+        
 
     } catch (const sql::SQLException &e) {
         std::cerr << "MySQL error: " << e.what()
