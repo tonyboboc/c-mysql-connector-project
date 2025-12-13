@@ -5,6 +5,30 @@
 #include <mysql/jdbc.h>
 void show_table(const std::string & table,sql::Connection *con){
 
+    std::string sql_statement="select * from "+table ;
+    sql::Statement *stmt;
+    sql::ResultSet *res;
+    stmt=con->createStatement();
+    res=stmt->executeQuery(sql_statement);
+    while(res->next()){
+        std::cout<<"id: "<<res->getInt(1)<<" ";
+        std::cout<<"| name of item : "<<res->getString(2);
+        std::cout<<std::endl;
+    }
+    delete res;
+    delete stmt;
+    
+}
+void command_done(const std::string & table , sql::Connection *con){
+    std::string sql_statement="delete from "+table+" where id=? ";
+    std::cout<<"enter what order did you finsih , based on id ? ";
+    int x;
+    std::cin>>x;
+    sql::PreparedStatement *prep_stmt;
+    prep_stmt=con->prepareStatement(sql_statement);
+    prep_stmt->setInt(1,x);
+    prep_stmt->execute();
+    delete prep_stmt;
 }
 int main()
 {
@@ -33,7 +57,8 @@ int main()
             std::cin>>x;
         }
 
-       
+        show_table(choice.at(x),con.get());
+       command_done(choice.at(x),con.get());
     }
     catch (const sql::SQLException& e)
     {
