@@ -18,12 +18,14 @@ void show_menu(const std::string & menu,sql::Connection *con){
         std::string sql_statement="Select * from "+menu+";";
         stmt=con->createStatement();
         res=stmt->executeQuery(sql_statement);
+        mtx.lock();
         while(res->next()){
             std::cout<<"id= "<<res->getInt(1)<<" ";
             std::cout<<" | name of item : "<<res->getString(2);
             std::cout<<" | price : "<<res->getDouble(3);
             std::cout<<std::endl;
         }
+        mtx.unlock();
         delete res;
         delete stmt;
 } 
@@ -75,14 +77,17 @@ std::thread adding_to_table(std::string table,sql::Connection *con,const  std::v
 
 }  
 std::thread placing_order(std::string menu,std::string table ,sql::Connection *con){
+mtx.lock();
     std::cout<<"do you want the menu 1(yes) 0(no) ";
+    mtx.unlock();
     int choice;
     std::vector<std::string> to_be_ordered;
     std::cin>>choice;
     if(choice==1){
         show_menu(menu, con);
-    }
+    }mtx.lock();
     std::cout<<"chose what you want to order (based on id) (0 means exit) ";
+    mtx.unlock();
     choice =-1;
     sql::PreparedStatement *prep_stmt;
     std::string string_statement="SELECT name FROM " + menu+ " WHERE id = ?;";
@@ -96,10 +101,14 @@ std::thread placing_order(std::string menu,std::string table ,sql::Connection *c
         prep_stmt->setInt(1,choice);
         res=prep_stmt->executeQuery();
         if(!res->next()){
+            mtx.lock();
             std::cout<<"Invalid Item";
+            mtx.unlock();
         }
         else{
+            mtx.lock();
             std::cout<<res->getString(1)<<" added to your choices ";
+            mtx.unlock();
             to_be_ordered.push_back(res->getString(1));
         } 
          delete res;
@@ -118,10 +127,14 @@ std::thread order(const std::string & bar_menu,const std::string & food_menu,sql
     std::map<int , std::array<std::string, 2>> choice;
     choice[0]={bar_menu,barman_tb};
     choice[1]={food_menu,cook_tb};
+    mtx.lock();
     std::cout<<"what do you want to order, food or drink ? (1=food 0=drink) ";
+    mtx.unlock();
     std::cin>>what_type;
     if(what_type<0||what_type>1){
+        mtx.lock();
         std::cout<<"you didn't choose what to order ";
+        mtx.unlock();
         std::cin>>what_type;
     }
     return placing_order(choice[what_type][0],choice[what_type][1],con);

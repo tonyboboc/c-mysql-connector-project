@@ -51,7 +51,7 @@ void command_done(const std::string & table , sql::Connection *con){
 void showing(const std::string &table,sql::Connection *con){
     while(ok){
         show_table(table,con);
-        std::cout<<"updatind"<<std::endl;
+        std::cout<<"updating"<<std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
      
