@@ -3,6 +3,11 @@
 #include <map>
 #include <string>
 #include <mysql/jdbc.h>
+#include <mutex>
+#include <thread>
+#include <chrono>
+std::mutex mtx;
+bool ok;
 void show_table(const std::string & table,sql::Connection *con){
 
     std::string sql_statement="select * from "+table ;
@@ -10,25 +15,46 @@ void show_table(const std::string & table,sql::Connection *con){
     sql::ResultSet *res;
     stmt=con->createStatement();
     res=stmt->executeQuery(sql_statement);
+    mtx.lock();
     while(res->next()){
         std::cout<<"id: "<<res->getInt(1)<<" ";
         std::cout<<"| name of item : "<<res->getString(2);
         std::cout<<std::endl;
     }
+    mtx.unlock();
     delete res;
     delete stmt;
     
 }
 void command_done(const std::string & table , sql::Connection *con){
+
     std::string sql_statement="delete from "+table+" where id=? ";
-    std::cout<<"enter what order did you finsih , based on id ? ";
+    mtx.lock();
+    std::cout<<"enter what order did you finsih , based on id ? (0 means exiting the program) ";
+    mtx.unlock();
     int x;
     std::cin>>x;
     sql::PreparedStatement *prep_stmt;
     prep_stmt=con->prepareStatement(sql_statement);
-    prep_stmt->setInt(1,x);
-    prep_stmt->execute();
+    while(x!=0){
+        prep_stmt->setInt(1,x);
+        prep_stmt->execute();
+        std::cin>>x;
+    }
+    if(x==0){
+        std::cout<<"program is finished";
+        ok=false;
+    }
+    
     delete prep_stmt;
+}
+void showing(const std::string &table,sql::Connection *con){
+    while(ok){
+        show_table(table,con);
+        std::cout<<"updatind"<<std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+     
 }
 int main()
 {
@@ -43,11 +69,17 @@ int main()
 
         sql::Driver* driver = get_driver_instance();
 
-    
+        ok=true;
         std::unique_ptr<sql::Connection> con(
             driver->connect(url, user, pass)
         );
         con->setSchema(schema);
+        
+        sql::Driver* driver2=get_driver_instance();
+        std::unique_ptr<sql::Connection> con2(
+            driver2->connect(url, user, pass)
+        );
+        con2->setSchema(schema);
         std::map<int,std::string> choice={{1,cook_tb},{0,barman_tb}};
         int x;
         std::cout<<"what are you , a cook or a barman ? (1=cook) (0=barman) ";
@@ -57,8 +89,10 @@ int main()
             std::cin>>x;
         }
 
-        show_table(choice.at(x),con.get());
-       command_done(choice.at(x),con.get());
+        std::thread t1(showing,choice.at(x),con.get());
+       std::thread t2(command_done,choice.at(x),con2.get());
+       t1.join();
+       t2.join();
     }
     catch (const sql::SQLException& e)
     {
